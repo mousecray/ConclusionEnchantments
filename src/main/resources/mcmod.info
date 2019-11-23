@@ -1,0 +1,16 @@
+[
+{
+  "modid": "concench",
+  "name": "Conclusion Enchantments",
+  "description": "This mod will add the ability to cast any spell on any tool. I wonder what will happen?..",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["mousecray"],
+  "credits": "The Forge and FML guys, for making Forge API",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
