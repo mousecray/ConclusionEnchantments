@@ -1,2 +1,6 @@
 death.attack.crit%1$s was destroyed by the decisive blow of %2$s
 death.attack.crit.item%1$s was destroyed by the decisive blow of %2$s using %3$s
+death.attack.critArrow%1$s was destroyed by the decisive shot
+death.attack.critArrow.item%1$s was destroyed by the decisive shot of %2$s using %3$s
+death.attack.finalCreative%1$s was deprived of divine status by %2$s
+death.attack.finalCreative.item%1$s was deprived of divine status by %2$s using %3$s

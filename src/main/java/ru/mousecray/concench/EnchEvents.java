@@ -8,11 +8,13 @@ import javax.annotation.Nullable;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.init.Items;
 import net.minecraft.init.MobEffects;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerRepair;
+import net.minecraft.item.ItemArrow;
 import net.minecraft.item.ItemBow;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -25,10 +27,8 @@ import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
-import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.eventhandler.Event.Result;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -54,7 +54,7 @@ public class EnchEvents {
 				genNBT(name, nbt, (output.getItem() instanceof ItemBow) ? true : false);
 				flag = true;
 			}
-			
+
 			if (flag) {
 				event.setCost(output.getRepairCost() + 2);
 				output.setRepairCost(output.getRepairCost() + 2);
@@ -69,7 +69,9 @@ public class EnchEvents {
 			ConcenchObj finals = obj.get();
 			nbt.setString("name", finals.getName());
 			nbt.setString("type", finals.getType().toString());
-			nbt.setString("action", arrow ? (finals.getAction() == EnchAction.USE ? (Concench.random.nextInt(10) > 5 ? EnchAction.ATTACK.toString() : EnchAction.DEFENCE.toString()) : finals.getAction().toString()) : finals.getAction().toString());
+			nbt.setString("action", arrow ? (finals.getAction() == EnchAction.USE
+					? (Concench.random.nextInt(10) > 5 ? EnchAction.ATTACK.toString() : EnchAction.DEFENCE.toString())
+					: finals.getAction().toString()) : finals.getAction().toString());
 			nbt.setString("value", finals.getValue());
 			int rand = Concench.random.nextInt(100);
 		}
@@ -120,9 +122,10 @@ public class EnchEvents {
 	}
 
 	@SubscribeEvent
-	public static void onItemUseTick(LivingEntityUseItemEvent.Finish event) {
+	public static void onItemUse(LivingEntityUseItemEvent.Finish event) {
 		ItemStack stack = event.getItem();
-		if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench") && EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.USE) {
+		if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench")
+				&& EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.USE) {
 			NBTTagCompound nbt = stack.getSubCompound("concench");
 			generateUse(event.getEntityLiving(), EnchType.fromString(nbt.getString("type")), nbt.getString("value"));
 		}
@@ -134,34 +137,18 @@ public class EnchEvents {
 		if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
 			EntityLivingBase damager = (EntityLivingBase) event.getSource().getTrueSource();
 			ItemStack stack = damager.getActiveItemStack();
-			if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench")) {
+			if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench")
+					&& !(stack.getItem() instanceof ItemBow)) {
 				NBTTagCompound nbt = stack.getSubCompound("concench");
-				if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.ATTACK && EnchType.fromString(stack.getSubCompound("concench").getString("type")) != EnchType.CRIT) {
+				if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.ATTACK) {
 					EnchType type = EnchType.fromString(nbt.getString("type"));
 					String value = nbt.getString("value");
-					generateAttack(living, damager, type, value, event.getAmount());
-				}
-				else if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.DEFENCE && living.getItemInUseCount() > 0 && !(living.getActiveItemStack().getItem() instanceof ItemBow)) {
-					generateDefence(event.getEntityLiving().getEntityWorld(), living, event.getSource(), EnchType.fromString(nbt.getString("type")), nbt.getString("value"));
-				}
-			}
-		}
-	}
-
-	@SubscribeEvent
-	public static void onCritEvent(CriticalHitEvent event) {
-		EntityPlayer player = event.getEntityPlayer();
-		ItemStack stack = player.getActiveItemStack();
-		if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench")) {
-			NBTTagCompound nbt = stack.getSubCompound("concench");
-			if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.ATTACK
-					&& !(stack.getItem() instanceof ItemBow)
-					&& EnchType.fromString(nbt.getString("type")) == EnchType.CRIT) {
-				int value = Integer.parseInt(nbt.getString("value"));
-				if (Concench.random.nextInt(100) < value) {
-					event.setDamageModifier(2.5F);
-					event.setResult(Result.ALLOW);
-					System.out.println(event.getDamageModifier());
+					generateAttack(living, event.getSource(), type, value, event.getAmount());
+				} else if (EnchAction
+						.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.DEFENCE
+						&& living.getItemInUseCount() > 0) {
+					generateDefence(event.getEntityLiving().getEntityWorld(), living, event.getSource(),
+							EnchType.fromString(nbt.getString("type")), nbt.getString("value"));
 				}
 			}
 		}
@@ -176,12 +163,8 @@ public class EnchEvents {
 				ItemStack stack = entity.getActiveItemStack();
 				if (stack.hasTagCompound() && stack.getTagCompound().hasKey("concench")) {
 					NBTTagCompound nbt = stack.getSubCompound("concench");
-					if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.ATTACK) {
-						entity.addTag("concench$" + nbt.getString("type") + "$" + nbt.getString("value") + "$" + nbt.getString("action"));
-					}
-					else if (EnchAction.fromString(stack.getSubCompound("concench").getString("action")) == EnchAction.DEFENCE) {
-						
-					}
+					entity.addTag("concench$" + nbt.getString("type") + "$" + nbt.getString("value") + "$"
+							+ nbt.getString("action"));
 				}
 			}
 
@@ -190,25 +173,28 @@ public class EnchEvents {
 
 	@SubscribeEvent
 	public static void onArrowImpact(ProjectileImpactEvent.Arrow event) {
-		if (event.getRayTraceResult().typeOfHit == Type.ENTITY && event.getRayTraceResult().entityHit instanceof EntityLivingBase) {
-			Optional<String> tag = event.getArrow().getTags().stream().filter(e -> e.startsWith("concench")).findFirst();
+		if (event.getRayTraceResult().typeOfHit == Type.ENTITY
+				&& event.getRayTraceResult().entityHit instanceof EntityLivingBase) {
+			Optional<String> tag = event.getArrow().getTags().stream().filter(e -> e.startsWith("concench"))
+					.findFirst();
 			if (tag.isPresent()) {
 				String[] pars = tag.get().split("$");
 				if (EnchAction.fromString(pars[3]) == EnchAction.ATTACK) {
 					EnchType type = EnchType.fromString(pars[1]);
 					String value = pars[2];
-					generateArrowAttack((EntityLivingBase) event.getRayTraceResult().entityHit, event.getArrow().shootingEntity, type, value, event.getArrow().getDamage() * 2);
+					generateArrowAttack((EntityLivingBase) event.getRayTraceResult().entityHit,
+							event.getArrow().shootingEntity, type, value, event.getArrow().getDamage() * 2);
 				}
 			}
-		}
-		else if (event.getRayTraceResult().typeOfHit == Type.BLOCK) {
-			Optional<String> tag = event.getArrow().getTags().stream().filter(e -> e.startsWith("concench")).findFirst();
+		} else if (event.getRayTraceResult().typeOfHit == Type.BLOCK) {
+			Optional<String> tag = event.getArrow().getTags().stream().filter(e -> e.startsWith("concench"))
+					.findFirst();
 			if (tag.isPresent()) {
 				String[] pars = tag.get().split("$");
 				if (EnchAction.fromString(pars[3]) == EnchAction.DEFENCE) {
 					EnchType type = EnchType.fromString(pars[1]);
 					String value = pars[2];
-					generateDefence(event.getArrow().getEntityWorld(), null, null, type, value);
+					generateArrowDefence(event.getArrow().getEntityWorld(), event.getArrow().shootingEntity, event.getArrow(), type, value);
 				}
 			}
 		}
@@ -222,6 +208,9 @@ public class EnchEvents {
 						Concench.random.nextInt(2) + 1));
 			((EntityPlayer) entity).getCooldownTracker().setCooldown(entity.getActiveItemStack().getItem(),
 					Concench.random.nextInt(30) + 30);
+			if (entity instanceof EntityPlayerMP)
+				entity.getActiveItemStack().attemptDamageItem(Concench.random.nextInt(10) + 5, Concench.random,
+						(EntityPlayerMP) entity);
 			break;
 		case DAMAGE_SELF:
 			break;
@@ -274,9 +263,19 @@ public class EnchEvents {
 		}
 	}
 
-	private static void generateDefence(World world, @Nullable EntityLivingBase entity, @Nullable DamageSource source, EnchType type, String value) {
+	private static void generateDefence(World world, @Nullable EntityLivingBase entity, @Nullable DamageSource source,
+			EnchType type, String value) {
 		switch (type) {
 		case CRIT:
+			world.getEntitiesInAABBexcluding(entity, entity.getCollisionBoundingBox().grow(2, 2, 2), e -> {
+				if (e instanceof EntityLivingBase) {
+					EntityLivingBase entity2 = (EntityLivingBase) entity;
+					return entity2.getHealth() < entity2.getMaxHealth() / 4;
+				}
+				return false;
+			}).forEach(e -> e.attackEntityFrom(ConcenchDamageSources.causeCritDamage(entity, e),
+					Concench.random.nextInt((int) (((EntityLivingBase) e).getHealth() / 2))
+							+ ((EntityLivingBase) e).getHealth() / 2));
 			break;
 		case DAMAGE_SELF:
 			break;
@@ -329,9 +328,13 @@ public class EnchEvents {
 		}
 	}
 
-	private static void generateAttack(EntityLivingBase entity, Entity damager, EnchType type, String value, double amount) {
+	private static void generateAttack(EntityLivingBase entity, DamageSource source, EnchType type, String value,
+			double amount) {
 		switch (type) {
 		case CRIT:
+			if (Concench.random.nextInt(100) < Integer.parseInt(value))
+				entity.attackEntityFrom(ConcenchDamageSources.causeCritDamage(entity, source.getTrueSource()),
+						(float) amount * Concench.random.nextInt(3) + 1);
 			break;
 		case DAMAGE_SELF:
 			break;
@@ -383,8 +386,9 @@ public class EnchEvents {
 			break;
 		}
 	}
-	
-	private static void generateArrowAttack(EntityLivingBase entity, Entity damager, EnchType type, String value, double amount) {
+
+	private static void generateArrowAttack(EntityLivingBase entity, Entity damager, EnchType type, String value,
+			double amount) {
 		switch (type) {
 		case CRIT:
 			if (Concench.random.nextInt(100) < Integer.parseInt(value))
@@ -440,8 +444,64 @@ public class EnchEvents {
 			break;
 		}
 	}
-	
-	private static void generateArrowDefencee(EntityLivingBase entity, Entity damager, EnchType type, String value, double amount) {
-				
+
+	private static void generateArrowDefence(World world, Entity attacker, EntityArrow arrow, EnchType type, String value) {
+		switch (type) {
+		case CRIT:
+			for (int i = 1; i <= 4; ++i) {
+				EntityArrow arrow = ((ItemArrow) Items.ARROW).createArrow(world, stack, shooter)
+				world.spawnEntity()
+				attacker.getPosition();				
+			}
+			break;
+		case DAMAGE_SELF:
+			break;
+		case DROP_ITEM_SELF:
+			break;
+		case DROP_ITEM_TARGET:
+			break;
+		case EFFECT:
+			break;
+		case EFFECT_CLEAR:
+			break;
+		case EFFECT_RANDOM:
+			break;
+		case EXPLOSION:
+			break;
+		case FILL:
+			break;
+		case FIRE:
+			break;
+		case GIVE:
+			break;
+		case KILL:
+			break;
+		case KNOCKBACK:
+			break;
+		case LIGHTBOLT:
+			break;
+		case PRINT:
+			break;
+		case SAND:
+			break;
+		case SETBLOCK:
+			break;
+		case SHOW:
+			break;
+		case SOUND:
+			break;
+		case SOUND_RANDOM:
+			break;
+		case SUMMON:
+			break;
+		case TP:
+			break;
+		case WATER:
+			break;
+		case FUNCTION:
+			break;
+		case CREATIVE:
+			break;
+		}
 	}
 }
